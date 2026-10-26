@@ -1,5 +1,21 @@
 {
-  "devDependencies": {
-    "typescript": "^7.0.2"
-  }
+  "name": "productify",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend && npm run build --prefix backend",
+    "start": "npm run db:push --prefix backend && npm run start --prefix backend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vishnnu2001/Storix.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Vishnnu2001/Storix/issues"
+  },
+  "homepage": "https://github.com/Vishnnu2001/Storix#readme",
+  "description": ""
 }
