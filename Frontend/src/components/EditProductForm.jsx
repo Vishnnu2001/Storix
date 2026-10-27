@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ImageIcon, TypeIcon, FileTextIcon, SaveIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, ImageIcon, SaveIcon, TagIcon, TypeIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -7,6 +7,8 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
     title: product.title,
     description: product.description,
     imageUrl: product.imageUrl,
+    price: product.price ?? "",
+    category: product.category ?? "",
   });
 
   return (
@@ -40,6 +42,35 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
                 required
               />
             </label>
+
+            {/* CATEGORY & PRICE INPUTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="input input-bordered flex items-center gap-2 bg-base-200">
+                <TagIcon className="size-4 text-base-content/50" />
+                <input
+                  type="text"
+                  placeholder="Category"
+                  className="grow"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  required
+                />
+              </label>
+
+              <label className="input input-bordered flex items-center gap-2 bg-base-200">
+                <span className="text-xs font-semibold text-base-content/60">LKR</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Price"
+                  className="grow"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
+              </label>
+            </div>
 
             <label className="input input-bordered flex items-center gap-2 bg-base-200">
               <ImageIcon className="size-4 text-base-content/50" />

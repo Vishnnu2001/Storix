@@ -19,10 +19,24 @@ const ProductCard = ({ product }) => {
         />
       </figure>
       <div className="card-body p-4">
-        <h2 className="card-title text-base">
-          {product.title}
-          {isNew && <span className="badge badge-secondary badge-sm">NEW</span>}
-        </h2>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="card-title text-base line-clamp-1">
+            {product.title}
+          </h2>
+          {isNew && <span className="badge badge-secondary badge-xs shrink-0">NEW</span>}
+        </div>
+
+        <div className="flex items-center justify-between text-xs my-1">
+          {product.category && (
+            <span className="badge badge-outline badge-sm font-medium">{product.category}</span>
+          )}
+          {product.price !== undefined && product.price !== null && (
+            <span className="text-sm font-bold text-primary">
+              LKR {parseFloat(product.price).toFixed(2)}
+            </span>
+          )}
+        </div>
+
         <p className="text-sm text-base-content/70 line-clamp-2">{product.description}</p>
 
         <div className="divider my-1"></div>
