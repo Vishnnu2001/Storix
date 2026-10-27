@@ -77,9 +77,21 @@ function ProductPage() {
 
         <div className="card bg-base-300">
           <div className="card-body">
-            <h1 className="card-title text-2xl">{product.title}</h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="card-title text-2xl">{product.title}</h1>
+              {product.price !== undefined && product.price !== null && (
+                <span className="text-2xl font-bold text-primary shrink-0">
+                  LKR {parseFloat(product.price).toFixed(2)}
+                </span>
+              )}
+            </div>
 
-            <div className="flex flex-wrap gap-4 text-sm text-base-content/60 my-2">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-base-content/60 my-2">
+              {product.category && (
+                <span className="badge badge-primary badge-outline font-medium">
+                  {product.category}
+                </span>
+              )}
               <div className="flex items-center gap-1">
                 <CalendarIcon className="size-4" />
                 {new Date(product.createdAt).toLocaleDateString()}

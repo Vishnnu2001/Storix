@@ -51,10 +51,10 @@ export const createProduct = async (req: Request, res: Response) => {
         const { userId } = getAuth(req);
         if(!userId) return res.status(401).json({error: "Unauthorized"});
 
-        const { title, description, imageUrl } = req.body;
+        const { title, description, imageUrl, price, category } = req.body;
 
-        if(!title || !description || !imageUrl){
-            res.status(400).json({error: "Title, description, and imageUrl are required"});
+        if(!title || !description || !imageUrl || price === undefined || !category){
+            res.status(400).json({error: "Title, description, imageUrl, price, and category are required"});
             return;
         }
 
@@ -62,6 +62,8 @@ export const createProduct = async (req: Request, res: Response) => {
             title,
             description,
             imageUrl,
+            price: price.toString(),
+            category,
             userId,
         });
 
@@ -79,7 +81,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         if(!userId) return res.status(401).json({error: "Unauthorized"});
 
         const { id } = req.params;
-        const { title, description, imageUrl } = req.body;
+        const { title, description, imageUrl, price, category } = req.body;
 
         if (typeof id !== "string") {
             return res.status(400).json({ error: "Invalid product ID" });
@@ -102,6 +104,8 @@ export const updateProduct = async (req: Request, res: Response) => {
             title,
             description,
             imageUrl,
+            price: price !== undefined ? price.toString() : undefined,
+            category,
         });
         res.status(200).json(product);
     } catch(error) {

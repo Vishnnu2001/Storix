@@ -54,7 +54,19 @@ const ProfilePage = () => {
                 <img src={product.imageUrl} alt={product.title} className="h-full object-cover" />
               </figure>
               <div className="card-body p-4">
-                <h2 className="card-title text-base">{product.title}</h2>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="card-title text-base">{product.title}</h2>
+                  {product.price !== undefined && product.price !== null && (
+                    <span className="text-sm font-bold text-primary shrink-0">
+                      LKR {parseFloat(product.price).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                {product.category && (
+                  <div>
+                    <span className="badge badge-outline badge-xs">{product.category}</span>
+                  </div>
+                )}
                 <p className="text-sm text-base-content/60 line-clamp-1">{product.description}</p>
                 <div className="card-actions justify-end mt-2">
                   <button
