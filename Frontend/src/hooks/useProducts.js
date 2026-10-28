@@ -5,12 +5,21 @@ import {
   getAllProducts,
   getMyProducts,
   getProductById,
+  searchProducts,
   updateProduct,
 } from "../lib/api";
 
 export const useProducts = () => {
   const result = useQuery({ queryKey: ["products"], queryFn: getAllProducts });
   return result;
+};
+
+export const useSearchProducts = (query) => {
+  return useQuery({
+    queryKey: ["products", "search", query],
+    queryFn: () => searchProducts(query),
+    enabled: !!query && query.trim().length > 0,
+  });
 };
 
 export const useCreateProduct = () => {

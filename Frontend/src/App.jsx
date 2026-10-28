@@ -6,6 +6,7 @@ import ProductPage from "./pages/ProductPage";
 import ProfilePage from "./pages/ProfilePage";
 import CreatePage from "./pages/CreatePage";
 import EditProductPage from "./pages/EditProductPage";
+import SearchResultPage from "./pages/SearchResultPage";
 import useAuthReq from "./hooks/useAuthReq";
 import useUserSync from "./hooks/useUserSync";
 
@@ -23,6 +24,7 @@ function App() {
       <main className="max-w-5xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/search" element={<SearchResultPage />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/profile" element={isSignedIn ? <ProfilePage /> : <Navigate to={"/"} />} />
           <Route path="/create" element={isSignedIn ? <CreatePage /> : <Navigate to={"/"} />} />

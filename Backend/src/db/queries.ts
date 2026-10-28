@@ -65,6 +65,18 @@ export const getAllProducts = async () => {
     });
 };
 
+export const searchProducts = async (term: string) => {
+    return db.query.products.findMany({
+        where: (products, { or, ilike }) =>
+            or(
+                ilike(products.title, `%${term}%`),
+                ilike(products.category, `%${term}%`)
+            ),
+        with: { user: true },
+        orderBy: (products, { desc }) => [desc(products.createdAt)],
+    });
+};
+
 export const getProductById = async (id: string) => {
     return db.query.products.findFirst({ 
         where: eq(products.id, id),
