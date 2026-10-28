@@ -2,10 +2,16 @@ import type { Request, Response } from "express";
 import * as queries from "../db/queries"
 import { getAuth } from "@clerk/express";
 
-// Get all products (public)
+// Get all products (public) - supports optional ?q= or ?search= query
 export const getAllProducts = async (req: Request, res: Response) => {
     try{
-        const products = await queries.getAllProducts();
+        const search = (req.query.q || req.query.search) as string | undefined;
+        let products;
+        if (search && search.trim()) {
+            products = await queries.searchProducts(search.trim());
+        } else {
+            products = await queries.getAllProducts();
+        }
         res.status(200).json(products);
     } catch(error) {
         console.error("Error getting products:", error);

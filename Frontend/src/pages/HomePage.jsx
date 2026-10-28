@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useProducts } from "../hooks/useProducts";
-import { PackageIcon, SparklesIcon } from "lucide-react";
-import { Link } from "react-router";
+import { PackageIcon, SparklesIcon, SearchIcon, XIcon } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ProductCard from "../components/ProductCard";
 import { SignInButton, useUser } from "@clerk/react";
@@ -8,6 +9,15 @@ import { SignInButton, useUser } from "@clerk/react";
 function HomePage() {
   const { data: products, isLoading, error } = useProducts();
   const { isSignedIn } = useUser();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   if (isLoading) return <LoadingSpinner />;
 
@@ -49,14 +59,55 @@ function HomePage() {
         </div>
       </div>
 
+      {/* SEARCH BAR */}
+      <div className="max-w-2xl mx-auto w-full px-4">
+        <form onSubmit={handleSearch}>
+          <div className="bg-base-100 rounded-full shadow-xl border border-base-content/10 p-2 sm:p-2.5 flex items-center gap-3 transition-all duration-300 hover:shadow-2xl focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
+            <div className="flex-1 flex flex-col justify-center pl-4 sm:pl-6 min-w-0">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-base-content/50 select-none">
+                Search Products
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, category, or keyword..."
+                className="bg-transparent border-none outline-none text-sm sm:text-base text-base-content font-medium placeholder:text-base-content/40 placeholder:font-normal w-full p-0 focus:ring-0"
+              />
+            </div>
+
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="btn btn-ghost btn-circle btn-xs sm:btn-sm text-base-content/50 hover:text-base-content shrink-0"
+                aria-label="Clear search"
+              >
+                <XIcon className="size-4" />
+              </button>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-circle bg-primary text-primary-content hover:bg-primary/90 border-none shadow-md shrink-0 size-11 sm:size-12 min-h-0 flex items-center justify-center transition-transform active:scale-95"
+              aria-label="Search"
+            >
+              <SearchIcon className="size-5 sm:size-5.5 stroke-[2.2]" />
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* PRODUCTS */}
       <div>
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <PackageIcon className="size-5 text-primary" />
-          All Products
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <PackageIcon className="size-5 text-primary" />
+            All Products
+          </h2>
+        </div>
 
-        {products.length === 0 ? (
+        {!products || products.length === 0 ? (
           <div className="card bg-base-300">
             <div className="card-body items-center text-center py-16">
               <PackageIcon className="size-16 text-base-content/20" />
