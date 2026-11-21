@@ -1,4 +1,3 @@
-import { SignInButton, SignOutButton } from "@clerk/react"
 import Navbar from "./components/Navbar"
 import { Navigate, Route, Routes } from "react-router";
 import HomePage from "./pages/HomePage";
@@ -7,6 +6,7 @@ import ProfilePage from "./pages/ProfilePage";
 import CreatePage from "./pages/CreatePage";
 import EditProductPage from "./pages/EditProductPage";
 import SearchResultPage from "./pages/SearchResultPage";
+import Wishlist from "./pages/Wishlist";
 import useAuthReq from "./hooks/useAuthReq";
 import useUserSync from "./hooks/useUserSync";
 
@@ -26,6 +26,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/search" element={<SearchResultPage />} />
           <Route path="/product/:id" element={<ProductPage />} />
+          <Route path="/wishlist" element={isSignedIn ? <Wishlist /> : <Navigate to={"/"} />} />
           <Route path="/profile" element={isSignedIn ? <ProfilePage /> : <Navigate to={"/"} />} />
           <Route path="/create" element={isSignedIn ? <CreatePage /> : <Navigate to={"/"} />} />
           <Route

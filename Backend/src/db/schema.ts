@@ -31,14 +31,24 @@ export const comments = pgTable("comments", {
     createdAt: timestamp("created_at", {mode: "date" }).notNull().defaultNow(),
 });
 
+export const wishlist = pgTable("wishlist", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
 export const userRelations = relations(users, ({ many }) => ({
     products: many(products),
     comments: many(comments),
+    wishlist: many(wishlist),
 }));
 
-export const productRelations = relations(products, ({one, many }) => ({
+export const productRelations = relations(products, ({ one, many }) => ({
     comments: many(comments),
     user: one(users, { fields: [products.userId], references: [users.id] }),
+    wishlist: many(wishlist),
 }));
 
 export const commentRelations = relations(comments, ({ one }) => ({
@@ -46,11 +56,20 @@ export const commentRelations = relations(comments, ({ one }) => ({
     product: one(products, { fields: [comments.productId], references: [products.id] }),
 }));
 
+export const wishlistRelations = relations(wishlist, ({ one }) => ({
+    user: one(users, { fields: [wishlist.userId], references: [users.id] }),
+    product: one(products, { fields: [wishlist.productId], references: [products.id] }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
- 
-export type Comment  = typeof comments.$inferSelect;
-export type NewComment =  typeof comments.$inferInsert;
+
+export type Comment = typeof comments.$inferSelect;
+export type NewComment = typeof comments.$inferInsert;
+
+export type Wishlist = typeof wishlist.$inferSelect;
+export type NewWishlist = typeof wishlist.$inferInsert;
+

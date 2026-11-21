@@ -52,3 +52,24 @@ export const deleteComment = async ({ commentId }) => {
   const { data } = await api.delete(`/comments/${commentId}`);
   return data;
 };
+
+// Wishlist API
+export const getMyWishlistIds = async () => {
+  const { data } = await api.get("/wishlist/ids");
+  return data;
+};
+
+export const getMyWishlist = async () => {
+  const { data } = await api.get("/wishlist");
+  return data;
+};
+
+export const addToWishlist = async (productId) => {
+  const { data } = await api.post(`/wishlist/${productId}`);
+  return data;
+};
+
+export const removeFromWishlist = async (productId) => {
+  const { data } = await api.delete(`/wishlist/${productId}`);
+  return data;
+};

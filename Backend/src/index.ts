@@ -7,6 +7,7 @@ import { clerkMiddleware } from '@clerk/express';
 import userRoutes from "./routes/userRoutes";
 import productRoutes from "./routes/productRoutes";
 import commentRoutes from "./routes/commentRoutes";
+import wishlistRoutes from "./routes/wishlistRoutes";
 
 
 const app = express();
@@ -32,6 +33,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 if(ENV.NODE_ENV === "production"){
     const __dirname = path.resolve();

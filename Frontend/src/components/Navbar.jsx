@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/react";
-import { ShoppingBagIcon, PlusIcon, UserIcon } from "lucide-react";
+import { ShoppingBagIcon, PlusIcon, UserIcon, HeartIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 
 
@@ -21,6 +21,10 @@ function Navbar() {
                 <ThemeSelector />
                 {isSignedIn ? (
                     <>
+                    <Link to="/wishlist" className="btn btn-ghost btn-sm gap-1">
+                        <HeartIcon className="size-4 text-error" />
+                        <span className="hidden sm:inline">Wishlist</span>
+                    </Link>
                     <Link to="/create" className="btn btn-primary btn-sm gap-1">
                         <PlusIcon className="size-4" />
                         <span className="hidden sm:inline">New Product</span>
