@@ -1,12 +1,14 @@
 import { db } from "./index";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
     users,
     comments,
     products,
+    wishlist,
     type NewUser,
     type NewComment,
     type NewProduct,
+    type NewWishlist,
 } from "./schema";
 
 //USER QUERIES
@@ -137,4 +139,37 @@ export const getCommentById = async (id: string) => {
         where: eq(comments.id, id),
         with: { user: true },
     });
+};
+
+// WISHLIST QUERIES
+
+export const getWishlistByUserId = async (userId: string) => {
+    return db.query.wishlist.findMany({
+        where: eq(wishlist.userId, userId),
+        with: {
+            product: {
+                with: { user: true },
+            },
+        },
+        orderBy: (wishlist, { desc }) => [desc(wishlist.createdAt)],
+    });
+};
+
+export const getWishlistEntry = async (userId: string, productId: string) => {
+    return db.query.wishlist.findFirst({
+        where: and(eq(wishlist.userId, userId), eq(wishlist.productId, productId)),
+    });
+};
+
+export const addToWishlist = async (data: NewWishlist) => {
+    const [entry] = await db.insert(wishlist).values(data).returning();
+    return entry;
+};
+
+export const removeFromWishlist = async (userId: string, productId: string) => {
+    const [entry] = await db
+        .delete(wishlist)
+        .where(and(eq(wishlist.userId, userId), eq(wishlist.productId, productId)))
+        .returning();
+    return entry;
 };
