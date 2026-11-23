@@ -1,11 +1,13 @@
 import { Link } from "react-router";
 import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/react";
-import { ShoppingBagIcon, PlusIcon, UserIcon, HeartIcon } from "lucide-react";
+import { ShoppingBagIcon, PlusIcon, UserIcon, HeartIcon, ShoppingCartIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
-
+import { useCart } from "../hooks/useCart";
 
 function Navbar() {
     const { isSignedIn } = useAuth();
+    const { data: cart } = useCart();
+    const totalItems = cart?.totalItems || 0;
   return (
     <div className="navbar bg-base-300">
         <div className="max-w-5xl mx-auto w-full px-4 flex justify-between items-center">
@@ -21,9 +23,22 @@ function Navbar() {
                 <ThemeSelector />
                 {isSignedIn ? (
                     <>
+                    <Link to="/cart" className="btn btn-ghost btn-sm gap-1.5 relative">
+                        <ShoppingCartIcon className="size-4" />
+                        <span className="hidden sm:inline">Cart</span>
+                        {totalItems > 0 && (
+                            <span className="badge badge-primary badge-xs">
+                                {totalItems > 99 ? "99+" : totalItems}
+                            </span>
+                        )}
+                    </Link>
                     <Link to="/wishlist" className="btn btn-ghost btn-sm gap-1">
                         <HeartIcon className="size-4 text-error" />
                         <span className="hidden sm:inline">Wishlist</span>
+                    </Link>
+                    <Link to="/orders" className="btn btn-ghost btn-sm gap-1">
+                        <ShoppingBagIcon className="size-4 text-primary" />
+                        <span className="hidden sm:inline">Orders</span>
                     </Link>
                     <Link to="/create" className="btn btn-primary btn-sm gap-1">
                         <PlusIcon className="size-4" />

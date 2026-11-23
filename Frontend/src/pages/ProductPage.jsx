@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowLeftIcon,
   EditIcon,
@@ -5,24 +6,62 @@ import {
   CalendarIcon,
   UserIcon,
   HeartIcon,
+  StarIcon,
+  ShoppingCartIcon,
+  PlusIcon,
+  MinusIcon,
+  CheckIcon,
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import CommentsSection from "../components/CommentsSection";
-import { useAuth } from "@clerk/react";
+import ProductRatingSection from "../components/ProductRatingSection";
+import { useAuth, useClerk } from "@clerk/react";
 import { useProduct, useDeleteProduct } from "../hooks/useProducts";
 import { useWishlist } from "../hooks/useWishlist";
+import { useAddToCart } from "../hooks/useCart";
 import { useParams, Link, useNavigate } from "react-router";
 
 function ProductPage() {
   const { id } = useParams();
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
+  const { openSignIn } = useClerk();
   const navigate = useNavigate();
 
   const { data: product, isLoading, error } = useProduct(id);
   const deleteProduct = useDeleteProduct();
   const { isInWishlist, toggleWishlist, isPending } = useWishlist();
+  const addToCart = useAddToCart();
+
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+  const [cartError, setCartError] = useState("");
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
+
+  const inStock = product?.inStock ?? (typeof product?.stock === "number" ? product.stock > 0 : true);
+  const isOwner = Boolean(userId && product && product.userId === userId);
+
+  const handleAddToCart = () => {
+    if (!inStock) return;
+    if (!isSignedIn) {
+      openSignIn();
+      return;
+    }
+    setCartError("");
+    addToCart.mutate(
+      { productId: product.id, quantity },
+      {
+        onSuccess: () => {
+          setAdded(true);
+          setTimeout(() => setAdded(false), 2000);
+        },
+        onError: (err) => {
+          setCartError(err?.response?.data?.error || "Failed to add to cart");
+          setTimeout(() => setCartError(""), 5000);
+        },
+      }
+    );
+  };
 
   const handleDelete = () => {
     if (confirm("Delete this product permanently?")) {
@@ -44,8 +83,6 @@ function ProductPage() {
       </div>
     );
   }
-
-  const isOwner = userId === product.userId;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -139,12 +176,43 @@ function ProductPage() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-base-content/60 my-2">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/60 my-2">
               {product.category && (
                 <span className="badge badge-primary badge-outline font-medium">
                   {product.category}
                 </span>
               )}
+              {/* Stock Status Badge */}
+              {isOwner && typeof product.stock === "number" ? (
+                <span className={`badge ${product.stock > 0 ? "badge-success" : "badge-error"} badge-outline font-semibold`}>
+                  Stock: {product.stock} {product.stock === 1 ? "unit" : "units"}
+                </span>
+              ) : (
+                <span className={`badge ${inStock ? "badge-success" : "badge-error"} badge-outline font-semibold`}>
+                  {inStock ? "In Stock" : "Out of Stock"}
+                </span>
+              )}
+              {/* Star Rating Summary */}
+              <div className="flex items-center gap-1.5 text-xs text-base-content/80 bg-base-200/80 px-2.5 py-1 rounded-full">
+                <div className="flex items-center text-warning">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <StarIcon
+                      key={star}
+                      className={`size-3.5 ${
+                        star <= Math.round(product.averageRating || 0)
+                          ? "fill-warning text-warning"
+                          : "text-base-content/20"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="font-bold text-xs text-base-content">
+                  {product.averageRating ? Number(product.averageRating).toFixed(1) : "0.0"}
+                </span>
+                <span className="text-[11px] text-base-content/50">
+                  ({product.totalRatings || 0})
+                </span>
+              </div>
               <div className="flex items-center gap-1">
                 <CalendarIcon className="size-4" />
                 {new Date(product.createdAt).toLocaleDateString()}
@@ -158,6 +226,74 @@ function ProductPage() {
             <div className="divider my-2"></div>
 
             <p className="text-base-content/80 leading-relaxed">{product.description}</p>
+
+            {/* Add to Cart Section */}
+            <div className="bg-base-200/60 p-4 rounded-xl space-y-3 mt-4 border border-base-content/5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-base-content/70">Quantity</span>
+                <div className="flex items-center gap-2 bg-base-300 rounded-lg p-1 border border-base-content/10">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    disabled={!inStock || quantity <= 1 || addToCart.isPending}
+                    className="btn btn-ghost btn-xs btn-square"
+                    aria-label="Decrease quantity"
+                  >
+                    <MinusIcon className="size-3.5" />
+                  </button>
+                  <span className={`w-8 text-center font-semibold text-sm ${!inStock ? "text-base-content/40" : ""}`}>
+                    {inStock ? quantity : 0}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => Math.min(99, prev + 1))}
+                    disabled={!inStock || quantity >= 99 || addToCart.isPending}
+                    className="btn btn-ghost btn-xs btn-square"
+                    aria-label="Increase quantity"
+                  >
+                    <PlusIcon className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={!inStock || addToCart.isPending}
+                className={`btn w-full gap-2 transition-all ${
+                  !inStock
+                    ? "btn-disabled opacity-60 cursor-not-allowed bg-base-300 text-base-content/40 border-base-content/10"
+                    : added
+                    ? "btn-success"
+                    : "btn-primary"
+                }`}
+              >
+                {addToCart.isPending ? (
+                  <span className="loading loading-spinner loading-xs" />
+                ) : !inStock ? (
+                  <>
+                    <ShoppingCartIcon className="size-5" />
+                    Out of Stock
+                  </>
+                ) : added ? (
+                  <>
+                    <CheckIcon className="size-5" />
+                    Added to Cart!
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCartIcon className="size-5" />
+                    Add to Cart
+                  </>
+                )}
+              </button>
+
+              {cartError && (
+                <div role="alert" className="alert alert-error alert-sm py-2 text-xs">
+                  <span>{cartError}</span>
+                </div>
+              )}
+            </div>
 
             {product.user && (
               <>
@@ -176,6 +312,13 @@ function ProductPage() {
               </>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Ratings Section */}
+      <div className="card bg-base-300">
+        <div className="card-body">
+          <ProductRatingSection productId={id} />
         </div>
       </div>
 
