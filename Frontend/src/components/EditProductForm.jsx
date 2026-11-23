@@ -1,4 +1,12 @@
-import { ArrowLeftIcon, FileTextIcon, ImageIcon, SaveIcon, TagIcon, TypeIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  FileTextIcon,
+  ImageIcon,
+  SaveIcon,
+  TagIcon,
+  TypeIcon,
+  BoxesIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -9,7 +17,25 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
     imageUrl: product.imageUrl,
     price: product.price ?? "",
     category: product.category ?? "",
+    stock: product.stock ?? 0,
   });
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    const stockNum = Number(formData.stock);
+    if (!Number.isInteger(stockNum) || stockNum < 0) {
+      setErrorMsg("Stock quantity must be a non-negative whole number (0 or greater).");
+      return;
+    }
+
+    onSubmit({
+      ...formData,
+      stock: stockNum,
+    });
+  };
 
   return (
     <div className="max-w-lg mx-auto">
@@ -24,13 +50,7 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
             Edit Product
           </h1>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSubmit(formData);
-            }}
-            className="space-y-4 mt-4"
-          >
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <label className="input input-bordered flex items-center gap-2 bg-base-200">
               <TypeIcon className="size-4 text-base-content/50" />
               <input
@@ -72,6 +92,31 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
               </label>
             </div>
 
+            {/* STOCK QUANTITY INPUT */}
+            <label className="input input-bordered flex items-center gap-2 bg-base-200">
+              <BoxesIcon className="size-4 text-base-content/50" />
+              <input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Stock Quantity"
+                className="grow"
+                value={formData.stock}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || (/^\d+$/.test(val) && parseInt(val, 10) >= 0)) {
+                    setFormData({ ...formData, stock: val });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "." || e.key === "e" || e.key === "-" || e.key === "+") {
+                    e.preventDefault();
+                  }
+                }}
+                required
+              />
+            </label>
+
             <label className="input input-bordered flex items-center gap-2 bg-base-200">
               <ImageIcon className="size-4 text-base-content/50" />
               <input
@@ -108,9 +153,9 @@ function EditProductForm({ product, isPending, isError, onSubmit }) {
               </div>
             </div>
 
-            {isError && (
+            {(errorMsg || isError) && (
               <div role="alert" className="alert alert-error alert-sm">
-                <span>Failed to update. Try again.</span>
+                <span>{errorMsg || "Failed to update. Try again."}</span>
               </div>
             )}
 

@@ -1,7 +1,15 @@
 import { Link, useNavigate } from "react-router";
 import { useCreateProduct } from "../hooks/useProducts";
 import { useState } from "react";
-import { ArrowLeftIcon, FileTextIcon, ImageIcon, SparklesIcon, TagIcon, TypeIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  FileTextIcon,
+  ImageIcon,
+  SparklesIcon,
+  TagIcon,
+  TypeIcon,
+  BoxesIcon,
+} from "lucide-react";
 
 function CreatePage() {
   const navigate = useNavigate();
@@ -12,13 +20,32 @@ function CreatePage() {
     imageUrl: "",
     price: "",
     category: "",
+    stock: "",
   });
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createProduct.mutate(formData, {
-      onSuccess: () => navigate("/"),
-    });
+    setErrorMsg("");
+
+    const stockNum = Number(formData.stock);
+    if (!Number.isInteger(stockNum) || stockNum < 0) {
+      setErrorMsg("Stock quantity must be a non-negative whole number (0 or greater).");
+      return;
+    }
+
+    createProduct.mutate(
+      {
+        ...formData,
+        stock: stockNum,
+      },
+      {
+        onSuccess: () => navigate("/"),
+        onError: (err) => {
+          setErrorMsg(err?.response?.data?.error || "Failed to create product. Try again.");
+        },
+      }
+    );
   };
 
   return (
@@ -48,7 +75,7 @@ function CreatePage() {
               />
             </label>
 
-            {/* CATEGORY & PRICE INPUTS */}
+            {/* CATEGORY, PRICE & STOCK INPUTS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="input input-bordered flex items-center gap-2 bg-base-200">
                 <TagIcon className="size-4 text-base-content/50" />
@@ -76,6 +103,31 @@ function CreatePage() {
                 />
               </label>
             </div>
+
+            {/* STOCK QUANTITY INPUT */}
+            <label className="input input-bordered flex items-center gap-2 bg-base-200">
+              <BoxesIcon className="size-4 text-base-content/50" />
+              <input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Stock Quantity"
+                className="grow"
+                value={formData.stock}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || (/^\d+$/.test(val) && parseInt(val, 10) >= 0)) {
+                    setFormData({ ...formData, stock: val });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "." || e.key === "e" || e.key === "-" || e.key === "+") {
+                    e.preventDefault();
+                  }
+                }}
+                required
+              />
+            </label>
 
             {/* IMGURL INPUT */}
             <label className="input input-bordered flex items-center gap-2 bg-base-200">
@@ -115,9 +167,9 @@ function CreatePage() {
               </div>
             </div>
 
-            {createProduct.isError && (
+            {(errorMsg || createProduct.isError) && (
               <div role="alert" className="alert alert-error alert-sm">
-                <span>Failed to create. Try again.</span>
+                <span>{errorMsg || "Failed to create. Try again."}</span>
               </div>
             )}
 
@@ -139,4 +191,4 @@ function CreatePage() {
   );
 }
 
-export default CreatePage
+export default CreatePage;

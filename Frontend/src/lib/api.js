@@ -73,3 +73,81 @@ export const removeFromWishlist = async (productId) => {
   const { data } = await api.delete(`/wishlist/${productId}`);
   return data;
 };
+
+// Ratings API
+export const getProductRatings = async (productId) => {
+  const { data } = await api.get(`/ratings/${productId}`);
+  return data;
+};
+
+export const addRating = async ({ productId, rating }) => {
+  const { data } = await api.post(`/ratings/${productId}`, { rating });
+  return data;
+};
+
+export const updateRating = async ({ productId, rating }) => {
+  const { data } = await api.put(`/ratings/${productId}`, { rating });
+  return data;
+};
+
+export const deleteRating = async (productId) => {
+  const { data } = await api.delete(`/ratings/${productId}`);
+  return data;
+};
+
+// Cart API
+export const getCart = async () => {
+  const { data } = await api.get("/cart");
+  return data;
+};
+
+export const addToCart = async ({ productId, quantity = 1 }) => {
+  const { data } = await api.post("/cart/items", { productId, quantity });
+  return data;
+};
+
+export const updateCartItemQuantity = async ({ itemId, quantity }) => {
+  const { data } = await api.put(`/cart/items/${itemId}`, { quantity });
+  return data;
+};
+
+export const removeCartItem = async (itemId) => {
+  const { data } = await api.delete(`/cart/items/${itemId}`);
+  return data;
+};
+
+export const clearCart = async () => {
+  const { data } = await api.delete("/cart");
+  return data;
+};
+
+// Orders & Checkout API
+export const initiateCheckout = async (deliveryData) => {
+  const { data } = await api.post("/orders/checkout", deliveryData);
+  return data;
+};
+
+export const getMyOrders = async () => {
+  const { data } = await api.get("/orders/my");
+  return data;
+};
+
+export const getOrderById = async (orderId) => {
+  const { data } = await api.get(`/orders/${orderId}`);
+  return data;
+};
+
+export const getSellerOrders = async () => {
+  const { data } = await api.get("/orders/seller/all");
+  return data;
+};
+
+export const updateOrderItemStatus = async ({ itemId, status }) => {
+  const { data } = await api.put(`/orders/seller/items/${itemId}/status`, { status });
+  return data;
+};
+
+export const simulateSandboxPayment = async ({ orderId, status = "SUCCESS" }) => {
+  const { data } = await api.post(`/orders/${orderId}/simulate-sandbox-payment`, { status });
+  return data;
+};

@@ -8,6 +8,9 @@ import userRoutes from "./routes/userRoutes";
 import productRoutes from "./routes/productRoutes";
 import commentRoutes from "./routes/commentRoutes";
 import wishlistRoutes from "./routes/wishlistRoutes";
+import ratingRoutes from "./routes/ratingRoutes";
+import cartRoutes from "./routes/cartRoutes";
+import orderRoutes from "./routes/orderRoutes";
 
 
 const app = express();
@@ -26,6 +29,10 @@ app.get("/api/health", (req, res) => {
             users: "/api/users",
             products: "/api/products",
             comments: "/api/comments",
+            wishlist: "/api/wishlist",
+            ratings: "/api/ratings",
+            cart: "/api/cart",
+            orders: "/api/orders",
         },
     });
 });
@@ -34,6 +41,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/ratings", ratingRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
 
 if(ENV.NODE_ENV === "production"){
     const __dirname = path.resolve();

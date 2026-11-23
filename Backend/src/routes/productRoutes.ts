@@ -13,6 +13,9 @@ router.get("/my", requireAuth(), productController.getMyProducts);
 // Get /api/products/:id - Get single product by ID (public)
 router.get("/:id", productController.getProductById);
 
+// GET /api/products/:id/stock - Get exact stock quantity (protected - owner only)
+router.get("/:id/stock", requireAuth(), productController.getProductStock);
+
 // Post /api/products - Create new product (protected)
 router.post("/", requireAuth(), productController.createProduct);
 

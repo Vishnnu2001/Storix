@@ -4,11 +4,10 @@ import { PackageIcon, SparklesIcon, SearchIcon, XIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ProductCard from "../components/ProductCard";
-import { SignInButton, useUser } from "@clerk/react";
+import { SignInButton } from "@clerk/react";
 
 function HomePage() {
   const { data: products, isLoading, error } = useProducts();
-  const { isSignedIn } = useUser();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 

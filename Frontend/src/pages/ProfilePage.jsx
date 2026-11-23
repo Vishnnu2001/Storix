@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router";
 import { useMyProducts, useDeleteProduct } from "../hooks/useProducts";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { PlusIcon, PackageIcon, EyeIcon, EditIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, PackageIcon, EyeIcon, EditIcon, Trash2Icon, PackageCheckIcon } from "lucide-react";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -21,9 +21,15 @@ const ProfilePage = () => {
           <h1 className="text-2xl font-bold">My Products</h1>
           <p className="text-base-content/60 text-sm">Manage your listings</p>
         </div>
-        <Link to="/create" className="btn btn-primary btn-sm gap-1">
-          <PlusIcon className="size-4" /> New
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/seller/orders" className="btn btn-outline btn-sm gap-1.5">
+            <PackageCheckIcon className="size-4 text-primary" />
+            <span className="hidden sm:inline">Seller</span> Orders
+          </Link>
+          <Link to="/create" className="btn btn-primary btn-sm gap-1">
+            <PlusIcon className="size-4" /> New
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -62,11 +68,16 @@ const ProfilePage = () => {
                     </span>
                   )}
                 </div>
-                {product.category && (
-                  <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {product.category && (
                     <span className="badge badge-outline badge-xs">{product.category}</span>
-                  </div>
-                )}
+                  )}
+                  {typeof product.stock === "number" && (
+                    <span className={`badge badge-xs font-semibold ${product.stock > 0 ? "badge-success badge-outline" : "badge-error badge-outline"}`}>
+                      Stock: {product.stock} {product.stock === 1 ? "unit" : "units"}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-base-content/60 line-clamp-1">{product.description}</p>
                 <div className="card-actions justify-end mt-2">
                   <button
