@@ -460,6 +460,9 @@ export interface CreateOrderParams {
 
 export const createOrderWithItems = async (params: CreateOrderParams) => {
     return await db.transaction(async (tx) => {
+        // Create pending order with items snapshot.
+        // NOTE: Seller orders (order_items) are NOT created here while payment is pending.
+        // They are only created after backend receives and verifies a successful PayHere payment notification.
         const [order] = await tx
             .insert(orders)
             .values({
@@ -472,22 +475,13 @@ export const createOrderWithItems = async (params: CreateOrderParams) => {
                 customerName: params.customerName,
                 customerEmail: params.customerEmail,
                 customerPhone: params.customerPhone,
+                itemsSnapshot: JSON.stringify(params.items),
                 paymentStatus: "PENDING",
                 orderStatus: "PENDING",
             })
             .returning();
 
-        const itemValues = params.items.map((item) => ({
-            orderId: order.id,
-            productId: item.productId,
-            sellerId: item.sellerId,
-            quantity: item.quantity,
-            priceAtPurchase: item.priceAtPurchase,
-            fulfillmentStatus: "PENDING",
-        }));
-
-        const insertedItems = await tx.insert(orderItems).values(itemValues).returning();
-
+        // Create pending payment record
         const [payment] = await tx
             .insert(payments)
             .values({
@@ -501,14 +495,14 @@ export const createOrderWithItems = async (params: CreateOrderParams) => {
 
         return {
             order,
-            items: insertedItems,
+            items: [], // No seller order items created while payment is pending
             payment,
         };
     });
 };
 
 export const getOrderById = async (orderId: string) => {
-    return await db.query.orders.findFirst({
+    const order = await db.query.orders.findFirst({
         where: eq(orders.id, orderId),
         with: {
             items: {
@@ -520,6 +514,41 @@ export const getOrderById = async (orderId: string) => {
             payments: true,
         },
     });
+
+    if (!order) return null;
+
+    // If order_items are not yet created in DB (e.g. while payment is pending)
+    // reconstruct items from itemsSnapshot so customer can still see order summary
+    if ((!order.items || order.items.length === 0) && order.itemsSnapshot) {
+        try {
+            const parsedItems = JSON.parse(order.itemsSnapshot);
+            const enrichedItems = await Promise.all(
+                parsedItems.map(async (item: any, idx: number) => {
+                    const product = await getProductById(item.productId);
+                    return {
+                        id: `preview-${idx}`,
+                        orderId: order.id,
+                        productId: item.productId,
+                        sellerId: item.sellerId,
+                        quantity: item.quantity,
+                        priceAtPurchase: item.priceAtPurchase,
+                        fulfillmentStatus: "PENDING",
+                        product: product || { id: item.productId, title: "Product", price: item.priceAtPurchase },
+                        createdAt: order.createdAt,
+                        updatedAt: order.updatedAt,
+                    };
+                })
+            );
+            return {
+                ...order,
+                items: enrichedItems,
+            };
+        } catch (e) {
+            console.error("Error parsing itemsSnapshot in getOrderById:", e);
+        }
+    }
+
+    return order;
 };
 
 export const getOrdersByUserId = async (userId: string) => {
@@ -553,9 +582,15 @@ export const getSellerOrders = async (sellerId: string) => {
         orderBy: (orderItems, { desc }) => [desc(orderItems.createdAt)],
     });
 
+    // Ensure seller orders are only returned for orders with verified successful payment (PAID)
+    // Never show pending, failed, or cancelled orders to sellers
+    const paidSellerItems = sellerItems.filter(
+        (item) => item.order && item.order.paymentStatus === "PAID"
+    );
+
     // Group by order to return clean seller order views without leaking other sellers' items
     const ordersMap = new Map<string, any>();
-    for (const item of sellerItems) {
+    for (const item of paidSellerItems) {
         if (!item.order) continue;
         if (!ordersMap.has(item.order.id)) {
             ordersMap.set(item.order.id, {
@@ -654,7 +689,7 @@ export const processSuccessfulPayment = async (
     rawResponse?: string
 ) => {
     return await db.transaction(async (tx) => {
-        // Fetch order
+        // Fetch order with existing items
         const order = await tx.query.orders.findFirst({
             where: eq(orders.id, orderId),
             with: { items: true },
@@ -664,13 +699,53 @@ export const processSuccessfulPayment = async (
             throw new Error(`Order ${orderId} not found`);
         }
 
-        // Idempotency: if already paid, do nothing and return
+        // Idempotency: if already paid, do nothing and return immediately.
+        // Prevents duplicate seller orders, stock deductions, and cart removal on repeated PayHere notifications.
         if (order.paymentStatus === "PAID") {
             return { alreadyPaid: true, order };
         }
 
-        // Deduct product stock atomically using conditional update (stock >= quantity)
-        for (const item of order.items) {
+        // Determine items to process: from itemsSnapshot or order.items
+        let itemsToProcess: {
+            productId: string;
+            sellerId: string;
+            quantity: number;
+            priceAtPurchase: string;
+        }[] = [];
+
+        if (order.items && order.items.length > 0) {
+            itemsToProcess = order.items.map((i) => ({
+                productId: i.productId,
+                sellerId: i.sellerId,
+                quantity: i.quantity,
+                priceAtPurchase: i.priceAtPurchase,
+            }));
+        } else if (order.itemsSnapshot) {
+            try {
+                itemsToProcess = JSON.parse(order.itemsSnapshot);
+            } catch (e) {
+                console.error("Failed to parse order.itemsSnapshot:", e);
+            }
+        }
+
+        // 1. CREATE SELLER ORDERS:
+        // Create order_items ONLY NOW after the payment notification is verified as successful.
+        // Ensure each seller receives only the order items belonging to their products.
+        let createdOrderItems = order.items || [];
+        if (createdOrderItems.length === 0 && itemsToProcess.length > 0) {
+            const itemValues = itemsToProcess.map((item) => ({
+                orderId: order.id,
+                productId: item.productId,
+                sellerId: item.sellerId,
+                quantity: item.quantity,
+                priceAtPurchase: item.priceAtPurchase,
+                fulfillmentStatus: "PENDING",
+            }));
+            createdOrderItems = await tx.insert(orderItems).values(itemValues).returning();
+        }
+
+        // 2. DEDUCT PRODUCT STOCK ATOMICALLY
+        for (const item of itemsToProcess) {
             const [updatedProduct] = await tx
                 .update(products)
                 .set({
@@ -690,7 +765,7 @@ export const processSuccessfulPayment = async (
             }
         }
 
-        // Update order status
+        // 3. UPDATE ORDER STATUS TO PAID
         const [updatedOrder] = await tx
             .update(orders)
             .set({
@@ -701,7 +776,7 @@ export const processSuccessfulPayment = async (
             .where(eq(orders.id, orderId))
             .returning();
 
-        // Update payment record
+        // 4. UPDATE PAYMENT RECORD TO SUCCESS
         await tx
             .update(payments)
             .set({
@@ -712,13 +787,15 @@ export const processSuccessfulPayment = async (
             })
             .where(eq(payments.orderId, orderId));
 
-        // Clear only the purchased items from customer's cart
+        // 5. CART MANAGEMENT:
+        // Automatically remove only the purchased items from customer's cart in the database.
+        // Preserves any newly added items that were not included in this checkout.
         const userCart = await tx.query.carts.findFirst({
             where: eq(carts.userId, order.userId),
         });
 
         if (userCart) {
-            const purchasedProductIds = order.items.map((i) => i.productId);
+            const purchasedProductIds = itemsToProcess.map((i) => i.productId);
             if (purchasedProductIds.length > 0) {
                 await tx
                     .delete(cartItems)
@@ -731,7 +808,7 @@ export const processSuccessfulPayment = async (
             }
         }
 
-        return { alreadyPaid: false, order: updatedOrder };
+        return { alreadyPaid: false, order: updatedOrder, items: createdOrderItems };
     });
 };
 
@@ -754,6 +831,10 @@ export const processFailedPayment = async (
             return order;
         }
 
+        // Do NOT create seller orders for failed or cancelled payments!
+        // Delete any order_items if they somehow existed:
+        await tx.delete(orderItems).where(eq(orderItems.orderId, orderId));
+
         const [updatedOrder] = await tx
             .update(orders)
             .set({
@@ -772,6 +853,8 @@ export const processFailedPayment = async (
                 updatedAt: new Date(),
             })
             .where(eq(payments.orderId, orderId));
+
+        // NOTE: Cart items remain completely unchanged on failed or cancelled payments!
 
         return updatedOrder;
     });

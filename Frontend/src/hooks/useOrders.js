@@ -24,6 +24,14 @@ export const useOrderDetails = (orderId) => {
     queryKey: ["orders", orderId],
     queryFn: () => getOrderById(orderId),
     enabled: !!isSignedIn && !!orderId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      // Auto-poll every 2 seconds while payment is pending to catch backend webhook confirmation
+      if (data && data.paymentStatus === "PENDING") {
+        return 2000;
+      }
+      return false;
+    },
   });
 };
 

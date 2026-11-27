@@ -7,6 +7,7 @@ import {
   useClearCart,
 } from "../hooks/useCart";
 import LoadingSpinner from "../components/LoadingSpinner";
+import ConfirmationModal from "../components/ConfirmationModal";
 import {
   ShoppingCartIcon,
   Trash2Icon,
@@ -24,6 +25,14 @@ function CartPage() {
   const removeItem = useRemoveCartItem();
   const clearCart = useClearCart();
   const [actionError, setActionError] = useState("");
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    variant: "danger",
+    onConfirm: null,
+  });
 
   if (isLoading) return <LoadingSpinner />;
 
@@ -43,14 +52,22 @@ function CartPage() {
     setActionError("");
     const newQty = currentQty + delta;
     if (newQty <= 0) {
-      if (confirm("Remove this item from your cart?")) {
-        removeItem.mutate(itemId, {
-          onError: (err) => {
-            setActionError(err?.response?.data?.error || "Failed to remove item.");
-            setTimeout(() => setActionError(""), 5000);
-          },
-        });
-      }
+      setConfirmModal({
+        isOpen: true,
+        title: "Remove Item",
+        message: "Are you sure you want to remove this product from your cart?",
+        confirmText: "Remove",
+        variant: "danger",
+        onConfirm: () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          removeItem.mutate(itemId, {
+            onError: (err) => {
+              setActionError(err?.response?.data?.error || "Failed to remove item.");
+              setTimeout(() => setActionError(""), 5000);
+            },
+          });
+        },
+      });
     } else {
       updateQuantity.mutate(
         { itemId, quantity: newQty },
@@ -66,26 +83,42 @@ function CartPage() {
 
   const handleRemove = (itemId) => {
     setActionError("");
-    if (confirm("Remove this item from your cart?")) {
-      removeItem.mutate(itemId, {
-        onError: (err) => {
-          setActionError(err?.response?.data?.error || "Failed to remove item.");
-          setTimeout(() => setActionError(""), 5000);
-        },
-      });
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Remove Item",
+      message: "Are you sure you want to remove this product from your cart?",
+      confirmText: "Remove",
+      variant: "danger",
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        removeItem.mutate(itemId, {
+          onError: (err) => {
+            setActionError(err?.response?.data?.error || "Failed to remove item.");
+            setTimeout(() => setActionError(""), 5000);
+          },
+        });
+      },
+    });
   };
 
   const handleClear = () => {
     setActionError("");
-    if (confirm("Are you sure you want to clear your entire cart?")) {
-      clearCart.mutate(undefined, {
-        onError: (err) => {
-          setActionError(err?.response?.data?.error || "Failed to clear cart.");
-          setTimeout(() => setActionError(""), 5000);
-        },
-      });
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Clear Entire Cart",
+      message: "Are you sure you want to clear your entire cart? All items will be removed.",
+      confirmText: "Clear Cart",
+      variant: "danger",
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        clearCart.mutate(undefined, {
+          onError: (err) => {
+            setActionError(err?.response?.data?.error || "Failed to clear cart.");
+            setTimeout(() => setActionError(""), 5000);
+          },
+        });
+      },
+    });
   };
 
   const isMutating =
@@ -334,6 +367,18 @@ function CartPage() {
           </div>
         </div>
       )}
+
+      {/* Centered In-App Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isLoading={isMutating}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

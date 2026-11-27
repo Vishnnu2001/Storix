@@ -13,4 +13,5 @@ export const ENV = {
     PAYHERE_MERCHANT_ID: process.env.PAYHERE_MERCHANT_ID || "1211149",
     PAYHERE_MERCHANT_SECRET: process.env.PAYHERE_MERCHANT_SECRET || "4T5U6V7W8X9Y",
     PAYHERE_ENV: process.env.PAYHERE_ENV || "sandbox",
+    NGROK_AUTH_TOKEN: process.env.NGROK_AUTH_TOKEN,
 }

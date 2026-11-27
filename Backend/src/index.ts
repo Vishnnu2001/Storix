@@ -11,6 +11,7 @@ import wishlistRoutes from "./routes/wishlistRoutes";
 import ratingRoutes from "./routes/ratingRoutes";
 import cartRoutes from "./routes/cartRoutes";
 import orderRoutes from "./routes/orderRoutes";
+import { startNgrokTunnel } from "./services/ngrokService";
 
 
 const app = express();
@@ -57,4 +58,11 @@ if(ENV.NODE_ENV === "production"){
     });
 }
 
-app.listen(ENV.PORT, () => console.log("Server is up and running on PORT:",ENV.PORT));
+const server = app.listen(ENV.PORT, async () => {
+    const address = server.address();
+    const actualPort = typeof address === "object" && address ? address.port : Number(ENV.PORT || 3001);
+    console.log(`Server is up and running on PORT: ${actualPort}`);
+
+    // Automatically establish ngrok HTTPS tunnel in development mode
+    await startNgrokTunnel(actualPort);
+});

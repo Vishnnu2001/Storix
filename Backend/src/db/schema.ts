@@ -83,6 +83,7 @@ export const orders = pgTable("orders", {
     customerName: text("customer_name").notNull(),
     customerEmail: text("customer_email").notNull(),
     customerPhone: text("customer_phone").notNull(),
+    itemsSnapshot: text("items_snapshot"), // Stores checkout items snapshot until verified payment creates seller orders
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

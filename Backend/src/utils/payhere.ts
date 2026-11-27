@@ -58,12 +58,29 @@ export const verifyPayHereSignature = (
         .digest("hex")
         .toUpperCase();
 
-    const plainText = `${merchantId}${orderId}${payhereAmount}${payhereCurrency}${statusCode}${hashedSecret}`;
-    const calculatedMd5sig = crypto
+    // Try with exact payhereAmount as provided
+    const plainTextRaw = `${merchantId}${orderId}${payhereAmount}${payhereCurrency}${statusCode}${hashedSecret}`;
+    const calculatedMd5sigRaw = crypto
         .createHash("md5")
-        .update(plainText)
+        .update(plainTextRaw)
         .digest("hex")
         .toUpperCase();
 
-    return calculatedMd5sig === (receivedMd5sig || "").toUpperCase();
+    if (calculatedMd5sigRaw === (receivedMd5sig || "").toUpperCase()) {
+        return true;
+    }
+
+    // Fallback: try with formatted 2-decimal amount in case of string representation variations
+    try {
+        const formattedAmount = formatAmount(payhereAmount);
+        const plainTextFormatted = `${merchantId}${orderId}${formattedAmount}${payhereCurrency}${statusCode}${hashedSecret}`;
+        const calculatedMd5sigFormatted = crypto
+            .createHash("md5")
+            .update(plainTextFormatted)
+            .digest("hex")
+            .toUpperCase();
+        return calculatedMd5sigFormatted === (receivedMd5sig || "").toUpperCase();
+    } catch {
+        return false;
+    }
 };
