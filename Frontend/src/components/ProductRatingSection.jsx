@@ -13,6 +13,7 @@ import {
   XIcon,
   LogInIcon,
 } from "lucide-react";
+import ConfirmationModal from "./ConfirmationModal";
 
 function ProductRatingSection({ productId }) {
   const { isSignedIn } = useAuth();
@@ -26,6 +27,7 @@ function ProductRatingSection({ productId }) {
   const [hoverRating, setHoverRating] = useState(0);
   const [selectedRating, setSelectedRating] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const averageRating = ratingData?.averageRating || 0;
   const totalRatings = ratingData?.totalRatings || 0;
@@ -67,9 +69,13 @@ function ProductRatingSection({ productId }) {
   };
 
   const handleDelete = () => {
-    if (!confirm("Are you sure you want to remove your rating?")) return;
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
     deleteRating.mutate(productId, {
       onSuccess: () => {
+        setShowDeleteModal(false);
         setIsEditing(false);
         setSelectedRating(0);
       },
@@ -302,6 +308,18 @@ function ProductRatingSection({ productId }) {
           </div>
         )}
       </div>
+
+      {/* Centered In-App Delete Rating Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        title="Remove Rating"
+        message="Are you sure you want to remove your rating for this product?"
+        confirmText="Remove Rating"
+        variant="danger"
+        isLoading={deleteRating.isPending}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

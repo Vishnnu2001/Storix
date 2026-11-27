@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOrderDetails, useSimulateSandboxPayment } from "../hooks/useOrders";
 import LoadingSpinner from "../components/LoadingSpinner";
 import {
@@ -14,15 +16,32 @@ import {
 function PaymentSuccessPage() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get("order_id");
+  const queryClient = useQueryClient();
 
   const { data: order, isLoading, refetch } = useOrderDetails(orderId);
   const simulatePayment = useSimulateSandboxPayment();
+
+  // When payment is verified as PAID, immediately refresh cart and products
+  useEffect(() => {
+    if (order && order.paymentStatus === "PAID") {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "my"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "seller"] });
+    }
+  }, [order?.paymentStatus, queryClient]);
 
   const handleSimulateSandbox = () => {
     if (order) {
       simulatePayment.mutate(
         { orderId: order.id, status: "SUCCESS" },
-        { onSuccess: () => refetch() }
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["cart"] });
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            refetch();
+          },
+        }
       );
     }
   };

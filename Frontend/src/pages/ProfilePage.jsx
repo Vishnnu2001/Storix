@@ -1,15 +1,25 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMyProducts, useDeleteProduct } from "../hooks/useProducts";
 import LoadingSpinner from "../components/LoadingSpinner";
+import ConfirmationModal from "../components/ConfirmationModal";
 import { PlusIcon, PackageIcon, EyeIcon, EditIcon, Trash2Icon, PackageCheckIcon } from "lucide-react";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { data: products, isLoading } = useMyProducts();
   const deleteProduct = useDeleteProduct();
+  const [productToDelete, setProductToDelete] = useState(null);
 
   const handleDelete = (id) => {
-    if (confirm("Delete this product?")) deleteProduct.mutate(id);
+    setProductToDelete(id);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!productToDelete) return;
+    deleteProduct.mutate(productToDelete, {
+      onSuccess: () => setProductToDelete(null),
+    });
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -105,6 +115,18 @@ const ProfilePage = () => {
           ))}
         </div>
       )}
+
+      {/* Centered In-App Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(productToDelete)}
+        title="Delete Product"
+        message="Are you sure you want to delete this listing? It will be permanently removed."
+        confirmText="Delete"
+        variant="danger"
+        isLoading={deleteProduct.isPending}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setProductToDelete(null)}
+      />
     </div>
   );
 };

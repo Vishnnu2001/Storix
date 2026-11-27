@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useAuth, SignInButton } from "@clerk/react";
 import { useCreateComment, useDeleteComment } from "../hooks/useComments";
 import { SendIcon, Trash2Icon, MessageSquareIcon, LogInIcon } from "lucide-react";
+import ConfirmationModal from "./ConfirmationModal";
 
 
 function CommentsSection({ productId, comments = [], currentUserId }) {
   const { isSignedIn } = useAuth();
   const [content, setContent] = useState("");
+  const [commentToDelete, setCommentToDelete] = useState(null);
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment(productId);
   
@@ -85,13 +87,11 @@ function CommentsSection({ productId, comments = [], currentUserId }) {
               {currentUserId === comment.userId && (
                 <div className="chat-footer">
                   <button
-                    onClick={() =>
-                      confirm("Delete?") && deleteComment.mutate({ commentId: comment.id })
-                    }
+                    onClick={() => setCommentToDelete(comment.id)}
                     className="btn btn-ghost btn-xs text-error"
                     disabled={deleteComment.isPending}
                   >
-                    {deleteComment.isPending ? (
+                    {deleteComment.isPending && commentToDelete === comment.id ? (
                       <span className="loading loading-spinner loading-xs" />
                     ) : (
                       <Trash2Icon className="size-3" />
@@ -103,6 +103,25 @@ function CommentsSection({ productId, comments = [], currentUserId }) {
           ))
         )}
       </div>
+
+      {/* Centered In-App Delete Comment Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(commentToDelete)}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment?"
+        confirmText="Delete"
+        variant="danger"
+        isLoading={deleteComment.isPending}
+        onConfirm={() => {
+          if (commentToDelete) {
+            deleteComment.mutate(
+              { commentId: commentToDelete },
+              { onSuccess: () => setCommentToDelete(null) }
+            );
+          }
+        }}
+        onClose={() => setCommentToDelete(null)}
+      />
     </div>
   );
 }

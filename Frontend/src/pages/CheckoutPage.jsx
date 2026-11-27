@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { useCart } from "../hooks/useCart";
 import { useInitiateCheckout } from "../hooks/useOrders";
 import { useUser, useAuth } from "@clerk/react";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { startPayHerePopup } from "../lib/payhere";
 import {
   ArrowLeftIcon,
   ShoppingBagIcon,
@@ -16,9 +17,31 @@ import {
   PhoneIcon,
   BuildingIcon,
   HashIcon,
+  InfoIcon,
 } from "lucide-react";
 
+/**
+ * Validate customer phone number.
+ * Supports Sri Lankan local format (07XXXXXXXX, 011XXXXXXX),
+ * country code format (+947XXXXXXXX, 947XXXXXXXX, 00947XXXXXXXX), and international numbers.
+ */
+export const isValidPhoneNumber = (phone) => {
+  if (!phone || typeof phone !== "string") return false;
+  const cleaned = phone.trim().replace(/[\s\-\(\)\.]/g, "");
+  const slLocalRegex = /^0[1-9][0-9]{8}$/;
+  const slIntlRegex = /^(?:\+94|94|0094)[1-9][0-9]{8}$/;
+  const intlRegex = /^\+[1-9][0-9]{7,14}$/;
+  const intlDoubleZeroRegex = /^00[1-9][0-9]{7,14}$/;
+  return (
+    slLocalRegex.test(cleaned) ||
+    slIntlRegex.test(cleaned) ||
+    intlRegex.test(cleaned) ||
+    intlDoubleZeroRegex.test(cleaned)
+  );
+};
+
 function CheckoutPage() {
+  const navigate = useNavigate();
   const { user } = useUser();
   const { userId } = useAuth();
   const { data: cart, isLoading: isCartLoading } = useCart();
@@ -56,16 +79,53 @@ function CheckoutPage() {
 
   const [errorMsg, setErrorMsg] = useState("");
   const [payhereData, setPayhereData] = useState(null);
+  const [isPopupActive, setIsPopupActive] = useState(false);
+  const [dismissNotice, setDismissNotice] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
 
-  // Auto-submit PayHere hidden form when payhereData is returned
-  useEffect(() => {
-    if (payhereData) {
+  const launchPaymentModal = async (data) => {
+    setIsPopupActive(true);
+    setDismissNotice("");
+    setErrorMsg("");
+
+    try {
+      await startPayHerePopup({
+        payhereData: data,
+        onCompleted: (orderId) => {
+          console.log("PayHere payment completed successfully. Order:", orderId);
+          setIsPopupActive(false);
+          navigate(`/payment/success?order_id=${orderId || data.order_id}`);
+        },
+        onDismissed: () => {
+          console.log("PayHere payment modal dismissed by user");
+          setIsPopupActive(false);
+          setDismissNotice(
+            "Payment popup was closed. Your order is pending payment. You can reopen the payment modal whenever you are ready."
+          );
+        },
+        onError: (error) => {
+          console.error("PayHere payment modal error:", error);
+          setIsPopupActive(false);
+          setErrorMsg(
+            typeof error === "string"
+              ? error
+              : "Payment could not be completed with PayHere. Please try again."
+          );
+        },
+      });
+    } catch (err) {
+      console.error("Could not launch PayHere popup modal:", err);
+      setIsPopupActive(false);
+      // Fallback: Submit hidden form if the JS SDK popup fails to launch
       const form = document.getElementById("payhere-checkout-form");
       if (form) {
         form.submit();
+      } else {
+        setErrorMsg("Failed to launch PayHere payment popup. Please verify your internet connection.");
       }
     }
-  }, [payhereData]);
+  };
 
   if (isCartLoading) return <LoadingSpinner />;
 
@@ -91,6 +151,7 @@ function CheckoutPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    setDismissNotice("");
 
     if (items.length === 0) {
       setErrorMsg("Your shopping cart is empty.");
@@ -111,10 +172,49 @@ function CheckoutPage() {
       return;
     }
 
+    // Customer Phone Validation
+    const rawPhone = (formData.customerPhone || "").trim();
+    if (!rawPhone) {
+      setErrorMsg("Phone number is required.");
+      setPhoneError("Phone number is required.");
+      setPhoneTouched(true);
+      return;
+    }
+    if (!isValidPhoneNumber(rawPhone)) {
+      setErrorMsg("Please enter a valid phone number (e.g. 0771234567 or +94771234567).");
+      setPhoneError("Please enter a valid phone number (e.g. 0771234567 or +94771234567).");
+      setPhoneTouched(true);
+      return;
+    }
+
+    // Customer Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test((formData.customerEmail || "").trim())) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+
+    // If pending payment data already exists for this order, reuse it to reopen modal
+    if (payhereData) {
+      await launchPaymentModal(payhereData);
+      return;
+    }
+
     try {
-      const result = await initiateCheckout.mutateAsync(formData);
+      const cleanedPhone = rawPhone.replace(/[\s\-\(\)\.]/g, "");
+      const submissionData = {
+        ...formData,
+        customerName: formData.customerName.trim(),
+        customerEmail: formData.customerEmail.trim(),
+        customerPhone: cleanedPhone,
+        deliveryAddress: formData.deliveryAddress.trim(),
+        city: formData.city.trim(),
+        postalCode: formData.postalCode.trim(),
+      };
+      const result = await initiateCheckout.mutateAsync(submissionData);
       if (result && result.payhere) {
         setPayhereData(result.payhere);
+        await launchPaymentModal(result.payhere);
       }
     } catch (err) {
       console.error("Checkout initiation failed:", err);
@@ -174,6 +274,24 @@ function CheckoutPage() {
         </div>
       )}
 
+      {dismissNotice && (
+        <div role="alert" className="alert alert-info text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <InfoIcon className="size-5 shrink-0" />
+            <span>{dismissNotice}</span>
+          </div>
+          {payhereData && (
+            <button
+              type="button"
+              onClick={() => launchPaymentModal(payhereData)}
+              className="btn btn-xs btn-primary font-medium"
+            >
+              Reopen Popup
+            </button>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left Column: Delivery Details */}
         <div className="lg:col-span-2 space-y-6">
@@ -228,22 +346,65 @@ function CheckoutPage() {
 
                 {/* Phone */}
                 <div className="form-control">
-                  <label className="label text-xs font-semibold text-base-content/70">
-                    Phone Number *
-                  </label>
-                  <label className="input input-bordered flex items-center gap-2 bg-base-200">
-                    <PhoneIcon className="size-4 text-base-content/50" />
+                  <div className="flex justify-between items-baseline">
+                    <label className="label text-xs font-semibold text-base-content/70 pb-1">
+                      Phone Number *
+                    </label>
+                    <span className="text-[10px] text-base-content/40">
+                      Sri Lanka or International
+                    </span>
+                  </div>
+                  <label
+                    className={`input input-bordered flex items-center gap-2 bg-base-200 transition-colors ${
+                      phoneTouched && phoneError ? "input-error border-error" : ""
+                    }`}
+                  >
+                    <PhoneIcon
+                      className={`size-4 ${
+                        phoneTouched && phoneError ? "text-error" : "text-base-content/50"
+                      }`}
+                    />
                     <input
                       type="tel"
                       className="grow"
-                      placeholder="e.g. 0771234567"
+                      placeholder="e.g. 0771234567 or +94771234567"
                       value={formData.customerPhone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, customerPhone: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData({ ...formData, customerPhone: val });
+                        if (phoneTouched) {
+                          if (!val.trim()) {
+                            setPhoneError("Phone number is required.");
+                          } else if (!isValidPhoneNumber(val)) {
+                            setPhoneError("Please enter a valid phone number (e.g. 0771234567 or +94771234567)");
+                          } else {
+                            setPhoneError("");
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        setPhoneTouched(true);
+                        const val = (formData.customerPhone || "").trim();
+                        if (!val) {
+                          setPhoneError("Phone number is required.");
+                        } else if (!isValidPhoneNumber(val)) {
+                          setPhoneError("Please enter a valid phone number (e.g. 0771234567 or +94771234567)");
+                        } else {
+                          setPhoneError("");
+                        }
+                      }}
                       required
                     />
                   </label>
+                  {phoneTouched && phoneError ? (
+                    <span className="text-[11px] text-error mt-1 font-medium">
+                      {phoneError}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-base-content/50 mt-1">
+                      e.g. 07XXXXXXXX, 011XXXXXXX, or +947XXXXXXXX
+                    </span>
+                  )}
                 </div>
 
                 {/* Delivery Address */}
@@ -408,13 +569,18 @@ function CheckoutPage() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={initiateCheckout.isPending || !!ownProductItem || !!outOfStockItem}
+                  disabled={initiateCheckout.isPending || isPopupActive || !!ownProductItem || !!outOfStockItem}
                   className="btn btn-primary w-full gap-2 shadow-lg cursor-pointer"
                 >
-                  {initiateCheckout.isPending ? (
+                  {initiateCheckout.isPending || isPopupActive ? (
                     <>
                       <span className="loading loading-spinner loading-xs" />
-                      Redirecting to PayHere...
+                      Opening PayHere Popup...
+                    </>
+                  ) : payhereData ? (
+                    <>
+                      <CreditCardIcon className="size-4" />
+                      Reopen PayHere Payment (LKR {subtotal.toFixed(2)})
                     </>
                   ) : (
                     <>
@@ -424,7 +590,7 @@ function CheckoutPage() {
                   )}
                 </button>
                 <p className="text-[11px] text-center text-base-content/50 mt-2">
-                  You will be redirected to PayHere Sandbox to complete your payment securely.
+                  A secure PayHere popup modal will appear to complete your payment.
                 </p>
               </div>
             </div>

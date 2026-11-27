@@ -13,6 +13,7 @@ import {
   CheckIcon,
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
+import ConfirmationModal from "../components/ConfirmationModal";
 import CommentsSection from "../components/CommentsSection";
 import ProductRatingSection from "../components/ProductRatingSection";
 import { useAuth, useClerk } from "@clerk/react";
@@ -35,6 +36,7 @@ function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [cartError, setCartError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
 
@@ -64,9 +66,16 @@ function ProductPage() {
   };
 
   const handleDelete = () => {
-    if (confirm("Delete this product permanently?")) {
-      deleteProduct.mutate(id, { onSuccess: () => navigate("/") });
-    }
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    deleteProduct.mutate(id, {
+      onSuccess: () => {
+        setShowDeleteModal(false);
+        navigate("/");
+      },
+    });
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -328,6 +337,18 @@ function ProductPage() {
           <CommentsSection productId={id} comments={product.comments} currentUserId={userId} />
         </div>
       </div>
+
+      {/* Centered Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Product"
+        message="Are you sure you want to delete this product permanently? This action cannot be undone."
+        confirmText="Delete Product"
+        variant="danger"
+        isLoading={deleteProduct.isPending}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

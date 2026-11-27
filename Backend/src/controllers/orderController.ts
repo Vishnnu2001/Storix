@@ -8,6 +8,27 @@ import {
     verifyPayHereSignature,
     formatAmount,
 } from "../utils/payhere";
+import { getPayHereNotifyUrl } from "../services/ngrokService";
+
+/**
+ * Validate customer phone number.
+ * Supports Sri Lankan local format (07XXXXXXXX, 011XXXXXXX),
+ * country code format (+947XXXXXXXX, 947XXXXXXXX, 00947XXXXXXXX), and international numbers.
+ */
+export const isValidPhoneNumber = (phone: string): boolean => {
+    if (!phone || typeof phone !== "string") return false;
+    const cleaned = phone.trim().replace(/[\s\-\(\)\.]/g, "");
+    const slLocalRegex = /^0[1-9][0-9]{8}$/;
+    const slIntlRegex = /^(?:\+94|94|0094)[1-9][0-9]{8}$/;
+    const intlRegex = /^\+[1-9][0-9]{7,14}$/;
+    const intlDoubleZeroRegex = /^00[1-9][0-9]{7,14}$/;
+    return (
+        slLocalRegex.test(cleaned) ||
+        slIntlRegex.test(cleaned) ||
+        intlRegex.test(cleaned) ||
+        intlDoubleZeroRegex.test(cleaned)
+    );
+};
 
 /**
  * POST /api/orders/checkout - Initiate checkout and create pending order
@@ -41,6 +62,23 @@ export const initiateCheckout = async (req: Request, res: Response) => {
                 error: "All delivery information (name, email, phone, address, city, postal code) is required.",
             });
         }
+
+        // Validate customer phone number
+        if (!isValidPhoneNumber(customerPhone)) {
+            return res.status(400).json({
+                error: "Please enter a valid phone number (e.g. 0771234567 or +94771234567).",
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(customerEmail.trim())) {
+            return res.status(400).json({
+                error: "Please enter a valid email address.",
+            });
+        }
+
+        const cleanedPhone = customerPhone.trim().replace(/[\s\-\(\)\.]/g, "");
 
         // Fetch user's cart
         const cart = await queries.getCartWithItems(userId);
@@ -109,7 +147,7 @@ export const initiateCheckout = async (req: Request, res: Response) => {
             postalCode: postalCode.trim(),
             customerName: customerName.trim(),
             customerEmail: customerEmail.trim(),
-            customerPhone: customerPhone.trim(),
+            customerPhone: cleanedPhone,
             items: validatedItems,
         });
 
@@ -134,7 +172,7 @@ export const initiateCheckout = async (req: Request, res: Response) => {
             merchant_id: merchantId,
             return_url: `${ENV.FRONTEND_URL}/payment/success?order_id=${order.id}`,
             cancel_url: `${ENV.FRONTEND_URL}/payment/cancel?order_id=${order.id}`,
-            notify_url: `${ENV.BACKEND_URL}/api/orders/notify`,
+            notify_url: getPayHereNotifyUrl(),
             order_id: order.id,
             items: itemsDescription,
             amount: totalFormatted,
@@ -143,10 +181,15 @@ export const initiateCheckout = async (req: Request, res: Response) => {
             first_name: firstName,
             last_name: lastName,
             email: customerEmail.trim(),
-            phone: customerPhone.trim(),
+            phone: cleanedPhone,
             address: deliveryAddress.trim(),
             city: city.trim(),
             country: "Sri Lanka",
+            delivery_address: deliveryAddress.trim(),
+            delivery_city: city.trim(),
+            delivery_country: "Sri Lanka",
+            custom_1: userId,
+            custom_2: "",
         };
 
         res.status(201).json({
@@ -290,6 +333,9 @@ export const getOrderById = async (req: Request, res: Response) => {
 
         // If user is a seller (and not the purchasing customer), return only their sold items
         if (!isCustomer && isSeller) {
+            if (order.paymentStatus !== "PAID") {
+                return res.status(403).json({ error: "Access denied. Order payment is not verified." });
+            }
             const sellerItems = order.items.filter((item) => item.sellerId === userId);
             const sellerTotal = sellerItems.reduce(
                 (sum, item) => sum + parseFloat(item.priceAtPurchase) * item.quantity,

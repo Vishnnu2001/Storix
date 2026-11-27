@@ -2,3 +2,24 @@
 @plugin "daisyui" {
     themes: all;
 }
+
+/* ── PayHere Modal & Backdrop Customization ── */
+/* Prevents Chrome from painting an opaque white canvas over the page */
+#ph-container {
+    color-scheme: normal !important;
+    isolation: isolate !important;
+}
+
+#ph-container iframe,
+#ph-iframe,
+.ph-checkout-frame {
+    color-scheme: normal !important;
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+.ph-backdrop {
+    background-color: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+}
